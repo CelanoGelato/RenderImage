@@ -1,0 +1,262 @@
+ffmpeg -y -loop 1 -i bgimage.png -ss 0 -t 5 -r 1 -loop 1 -i front.png -ss 0 -t 5 -filter_complex " [1:v] scale=w=1920:h=1080 [fg]; [0:v] scale=w='if( gt(iw, ih), -2, 2202.9071700823 )':h='if( gt(iw,ih), 2202.9071700823, -2  )', rotate=a=0.39269908169872*t/5:c=black:ow=1920:oh=1080, setsar=1 [bg]; [bg][fg]overlay=shortest=1[v] " -map "[v]" -c:v h264 -crf 18 -preset veryfast rotate_cw.mp4
+
+afade=t=in:ss=0:d=15
+afade=t=out:st=875:d=25
+
+* afade audio *
+ffmpeg -y -i 1.mp3 -af afade=t=in:ss=0:d=10:curve=log,afade=t=out:st=174:d=60:curve=log -preset ultrafast 2.mp3
+ffplay 1.mp3 -af afade=t=in:ss=0:d=10:curve=log,afade=t=out:st=174:d=60:curve=log
+st là tổng thời gian của mp3 (second)
+curve có các giá trị : tri, qsin, hsin, esin, log, ipar, qua, cub, squ, cbr, par, exp, iqsin, ihsin, dese, desi, losi, nofade
+hình ảnh hiệu ứng curve : https://trac.ffmpeg.org/wiki/AfadeCurves
+
+* gte(x, y) * 
+Return 1 if x is greater than or equal to y, 0 otherwise.
+x>=y ? 1 : 0
+
+trim=duration=10 cắt video 10s 
+
+* Zoom video *
+ffmpeg -y -i 3.mp4 -r 60 -vf "scale=w=-2:h=3*1080 , crop=w=3*1920:h=3*1080, zoompan=zoom=min(max(zoom\,pzoom)+0.0008\,1.1):d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1920x1080" -preset ultrafast output.mp4
+
+mix 2 mp3 vào 1
+https://stackoverflow.com/questions/14498539/how-to-overlay-downmix-two-audio-files-using-ffmpeg
+
+ffmpeg -y -loop 1 -i bgimage.png -ss 0 -t 5 -r 1 -loop 1 -i front.png -ss 0 -t 5 -filter_complex " [1:v] scale=w=1920:h=1080 [fg]; [0:v] scale=w=-2:h=3*1080 , crop=w=3*1920/1.05:h=3*1080/1.05:x=(in_w-out_w)-t*(in_w-out_w)/5, scale=w=1920:h=1080, setsar=1 [bg]; [bg][fg]overlay=shortest=1[v] " -map "[v]" -c:v h264 -crf 18 -preset ultrafast pan_right.mp4
+
+zoom and pan left
+ffmpeg -y -i 3.mp4 -r 60 -vf "scale=w=-2:h=3*1080,crop=w=3*1920/1.5:h=3*1080/1.5:x=(in_w-out_w)-t*(in_w-out_w)/10, zoompan=z=min(max(zoom\,pzoom)+0.0008\,2):d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1920x1080" -preset ultrafast output.mp4
+
+* concat 2 mp3 *
+ffmpeg -y -i "concat:C:\Users\SEGU-01\Desktop\testmp3\1.mp3|C:\Users\SEGU-01\Desktop\testmp3\2.mp3" -acodec copy C:\Users\SEGU-01\Desktop\opaudioeditor\output.mp3
+
+* mix 2 audio *
+ffmpeg -i 1.mp3 -i 2.mp3 -filter_complex "[0:a]volume=5[a0]; [1:a]volume=0.5[a1]; [a0][a1]amix=inputs=2:duration=shortest[out]" -map "[out]" -ac 2 output.mp3ffmpeg -i 1.mp3 -i 2.mp3 -filter_complex "amerge=inputs=2,pan=stereo|c0<c0+c1|c1<c2+c3" 3.mp3
+- add silence between 2 audio
+ffmpeg -i 1.mp3 -af "volume=enable='between(t,5,10)':volume=0, volume=enable='between(t,15,20)':volume=0" 2.mp3
+
+* Change tag mp3 *
+ffmpeg -i 1.mp3 -i 1.jpg -map 0:0 -map 1:0 -codec copy -id3v2_version 3 -disposition:0 attached_pic -metadata title="Một đêm say" -metadata artist="Thịnh Suy" -metadata albumartist="Cần :))" -metadata album="Cần :))" -metadata track="1/2" -metadata discnumber="Cần :))" -metadata year="Cần :))" -metadata genre="Nhạc trẻ" -metadata comment="SeguJSC" anhthanhnien.mp3
+
+* Thêm thumnail cho video *
+ffmpeg -y -i 1.mp4 -i 1.jpg -map 1 -map 0 -c copy -disposition:0 attached_pic out.mp4
+
+* Mp4 -> Mp3 + trim mp3 *
+ffmpeg -y -ss 15 -t 60 -i 1.mp4 -f mp3 -vn 2.mp3
+
+* Mute two sections use between *
+ffmpeg -i 1.mp3 -af "volume=enable='between(t,5,10)':volume=0, volume=enable='between(t,15,20)':volume=0" 2.mp3
+
+zoom blur transition ffmpeg
+https://www.youtube.com/watch?v=h8zIg9nHMAo
+
+change channel(mono, stereo),bitrate, samplerates audio
+ffmpeg -y -i 32k44100.mp3 -af "pan=stereo|c0=c0|c1=c0" -b:a 320k -ar 44100 320k44100test.mp3
+ffmpeg -y -i 32k44100.mp3 -af "pan=mono|c0=c1" -b:a 320k -ar 44100 320k44100test.mp3
+ffplay -i 1.mp3 -ar 42900 320k44100test.mp3
+
+ffmpeg -y -i 1.mp3 -f segment -segment_times 10,30 -acodec copy out%01.mp3
+
+remove a section from an audio and keep the rest
+ffmpeg -y -i 1.mp3 -filter_complex "[0]atrim=duration=30[a];[0]atrim=start=45[b];[a][b]concat=n=2:v=0:a=1" output.mp3
+
+ffmpeg -y -i 1.mp3 -i 2.mp3 -filter_complex "[0]atrim=duration=30[a];[0]atrim=start=45[b];[1]=[c];[a][b][c]concat=n=3:v=0:a=1" output.mp3
+
+'pop': ' -af equalizer=f=500:width_type=h:w=300:g=2,equalizer=f=1000:width_type=h:w=100:g=3,'
+                                 'equalizer=f=2000:width_type=h:w=100:g=-2,equalizer=f=4000:width_type=h:w=100:g=-4,'
+                                 'equalizer=f=8000:width_type=h:w=100:g=-4,equalizer=f=16000:width_type=h:w=100:g=-4',
+                          'classic': ' -af equalizer=f=250:width_type=h:w=100:g=-6,'
+                                     'equalizer=f=1000:width_type=h:w=100:g=1,'
+                                     'equalizer=f=4000:width_type=h:w=100:g=6,'
+                                     'equalizer=f=8000:width_type=h:w=100:g=6,'
+                                     'equalizer=f=16000:width_type=h:w=100:g=6',
+                          'jazz': ' -af equalizer=f=250:width_type=h:w=100:g=5,'
+                                  'equalizer=f=500:width_type=h:w=100:g=-5,equalizer=f=1000:width_type=h:w=100:g=-2,'
+                                  'equalizer=f=2000:width_type=h:w=100:g=2,equalizer=f=4000:width_type=h:w=100:g=-1,'
+                                  'equalizer=f=8000:width_type=h:w=100:g=-1,equalizer=f=16000:width_type=h:w=100:g=-1',
+                          'rock': ' -af equalizer=f=250:width_type=h:w=100:g=3,'
+                                  'equalizer=f=500:width_type=h:w=100:g=-9,equalizer=f=1000:width_type=h:w=100:g=-1,'
+                                  'equalizer=f=2000:width_type=h:w=100:g=3,equalizer=f=4000:width_type=h:w=100:g=3,'
+                                  'equalizer=f=8000:width_type=h:w=100:g=3,equalizer=f=16000:width_type=h:w=100:g=3',
+                          'balanced': ' -af equalizer=f=32:width_type=h:w=100:g=3,'
+                                  'equalizer=f=64:width_type=h:w=100:g=2,equalizer=f=500:width_type=h:w=100:g=-1,'
+                                  'equalizer=f=1000:width_type=h:w=100:g=-2,equalizer=f=4000:width_type=h:w=100:g=1,'
+                                  'equalizer=f=8000:width_type=h:w=100:g=3,equalizer=f=16000:width_type=h:w=100:g=3',
+                          'bb': ' -af bass=g=8',
+                          'vocals': ' -af compand=.3|.3:1|1:-90/-60|-60/-40|-40/-30|-20/-20:6:0:-90:0.2',
+                          'easy': ' -af earwax',
+                          'live': ' -af extrastereo'
+
+ffmpeg -y -i 1.mp3 -af "equalizer=f=60:width_type=h:w=100:g=-15,equalizer=f=230:width_type=h:w=100:g=-15,equalizer=f=910:width_type=h:w=100:g=15,equalizer=f=3600:width_type=h:w=100:g=15,equalizer=f=14000:width_type=h:w=100:g=15" -avoid_negative_ts -1 5.mp3
+
+3D audio
+ffmpeg -y -i ip.mp3 -af apulsator=hz=0.125 -b:a 320k out.mp3
+
+* lấy thông tin metadata *
+    ffmpeg -i anhthanhnien.mp3 -f ffmetadata anhthanhnien.txt
+
+* Change Cover *
+    - xoá cover image
+        ffmpeg -i 1.mp3 -vn out.mp3
+    - add cover image
+        ffmpeg -i 1.mp3 -i 1.jpg -map 0:0 -map 1:0 -codec copy -id3v2_version 3 output.mp3
+
+* Change Cover Image & metadata *
+    - xoá metadata và cover image
+        ffmpeg -i 1.mp3 -vn -codec:a copy -map_metadata -1 out.mp3
+    - add cover image & metadata
+        ffmpeg -i 1.mp3 -i 1.jpg -map 0:0 -map 1:0 -codec copy -id3v2_version 3 -map_metadata -1 -metadata title="Test change cover image and metadata" -metadata artist="" -metadata albumartist="" -metadata album="" -metadata track="" -metadata discnumber="" -metadata year="" -metadata genre="" -metadata comment="" anhthanhnien.mp3
+
+* Change metadata *
+    - add metadata
+        ffmpeg -i 2.mp3 -map 0:a -codec:a copy -map_metadata -1 -metadata title="Xoá metadata" -metadata artist="Thịnh Suy" -metadata albumartist="Cần :))" -metadata album="Cần :))" -metadata track="1/2" -metadata discnumber="Cần :))" -metadata year="Cần :))" -metadata genre="Nhạc trẻ" -metadata comment="StereoAoSen" anhthanhnien.mp3
+        ffmpeg -i 2.mp3 -map_metadata -metadata title="Xoá metadata" -1 anhthanhnien.mp3
+        ffmpeg -i 2.mp3 -map 0:a -codec:a copy -map_metadata -1 out.mp3
+
+youtube-dl -f bestaudio "https://www.youtube.com/watch?v=uoLg4qSTtUY" --exec "ffmpeg -i {} -codec:a libmp3lame -qscale:a 0 {}.mp3"
+
+xoá metadata
+-map_metadata -1
+
+(for %i in (*.mp4) do @echo file '%i') > mylist.txt
+
+code tạo video background từ video gốc
+ffmpeg -i "{input}.mp4" -lavfi "[0:v]scale=iw*1.778:ih,boxblur=luma_radius=min(w\,h)/40:luma_power=3:chroma_radius=min(ch\,cw)/40:chroma_power=1[bg];[bg][0:v]overlay=(W-w)/2:(H-h)/2,setsar=1,crop=iw:ih" -preset superfast "{output}.mp4"
+
+code cắt video
+ffmpeg -i 1.mp4 -ss 0 -t ((ffprobe 1.mp4 -show_entries format=duration -v quiet -of csv="p=0")-10) -b:v 2M -r 30 -vf scale=1280x1280,setdar=1:1 -an -map_metadata -1 -preset ultrafast 11.mp4
+ffmpeg -i "{input}.mp4" -ss 0 -t ((ffprobe "{input}.mp4" -show_entries format=duration -v quiet -of csv="p=0")-10) -b:v 2M -r 30 -vf scale=1280x1280,setdar=1:1 -an -map_metadata -1 -preset ultrafast "{output}.mp4"
+
+code download video + thumbnail chất lượng cao
+youtube-dl -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio' --merge-output-format mp4 https://www.youtube.com/watch?v=O71GdeeND68
+youtube-dl -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio' --write-thumbnail --merge-output-format mp4 https://www.youtube.com/watch?v=cf_mQeNZFiU
+youtube-dl -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio' --merge-output-format mp4 https://www.youtube.com/watch?v=MKt2x-kjiSY
+youtube-dl -f best 'http://www.youtube.com/watch?v=P9pzm5b6FFY' --exec 'ffmpeg -ss 10 -t ((ffprobe -i {} -show_entries format=duration -v quiet -of csv="p=0")-210) -i {} -b:v 2M -r 30 -vf scale=1280x1280,setdar=1:1 -an -map_metadata -1 -preset ultrafast {}'
+
+code ghép âm vào video:
+ffmpeg -i 2.mp4 -i 1.mp3 -c:v copy -c:a aac -strict experimental -shortest -preset ultrafast 3.mp4
+
+mp3 download
+youtube-dl --extract-audio --audio-format mp3 https://www.youtube.com/watch?v=UjHxJdGExcw
+
+tăng độ sáng màn hình
+ffmpeg -i 1.mp4 -vf eq=brightness=0.2:saturation=2 -c:a copy -preset ultrafast 2.mp4
+
+Cắt Video 16:9 sang Video Vuông
+ffmpeg -i source.mp4 -filter:v "crop=1080:1080:x:y" -r 30 -g 60  -c:a copy -map_metadata -1 -preset veryslow background1.mp4
+
+Kéo video sang vuông
+ffmpeg -y -i 1.mp4 -vf scale=1280x1280,setdar=1:1 -map_metadata -1 2.mp4
+
+Tăng speed 0.5
+ffmpeg -y -i transparent1.mp4 -af "atempo=0.5" -vf "setpts=PTS/0.5" -r 30 -preset veryslow transparent2.mp4
+
+Download video youtube
+youtube-dl -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio' --write-thumbnail --merge-output-format mp4 https://www.youtube.com/watch?v=fd_SNxwmq60
+youtube-dl -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio' --write-thumbnail --merge-output-format mp4 www.pinterest.com/pin/844354630128685192
+youtube-dl -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio' --write-thumbnail --merge-output-format mp4 -a download.txt
+youtube-dl -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio' --merge-output-format mp4 https://www.youtube.com/watch?v=fd_SNxwmq60
+youtube-dl -a diy.txt
+youtube-dl -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio' --merge-output-format mp4 https://www.pinterest.com/pin/580542208209123352/
+
+Download mp3
+youtube-dl --extract-audio --audio-format mp3 https://www.youtube.com/watch?v=Cxpi_FjjK78
+
+Cắt video
+ffmpeg -y -i 1.mp4 -ss 5 -t 20 -preset ultrafast 11.mp4 |
+ffmpeg -y -i 4.mp4 -ss 00:00:06 -to 00:10:45 -preset ultrafast 44.mp4 |
+ffmpeg -y -i 5.mp4 -ss 00:00:08 -to 00:12:15 -preset ultrafast 55.mp4 |
+ffmpeg -y -i 6.mp4 -ss 00:00:08 -to 00:10:14 -preset ultrafast 66.mp4
+
+Ảnh vuông
+ffmpeg -i ic_launcher.png -vf scale=512:512 ic_launcher_out.png
+ffmpeg -i background_source.png -vf scale=1280:1280 background.png
+ffmpeg -i ic_launcher_foreground.png -vf scale=324:324 ic_launcher_foreground_.png
+
+Crop and Scale 16/9 Ytb -> 6/19 Tiktok = 720x1280
+ffmpeg -i 1.mp4 -vf crop=ih*0.5625:ih,scale=720x1280 -preset ultrafast source.mp4
+
+Đổi đuôi image
+ffmpeg -i 1.webp 1.jpg
+
+Cắt đầu đuôi video
+ffmpeg -y -i 1.mp4 -ss 10 -to 60 -preset ultrafast 11.mp4
+
+Cắt MP3
+ffmpeg -y -i music.mp3 -ss 00:23:23 -to 00:27:05 -acodec copy "Đánh Mất Em.mp4"
+
+Cắt 1 video thành nhiều phần
+ffmpeg -i 1.mp4 -vf "select='between(t,4,6.5)+between(t,17,26)+between(t,74,91)+between(t,99,120)+between(t,170,200)+between(t,200,210)',
+setpts=N/FRAME_RATE/TB" -af "aselect='between(t,4,6.5)+between(t,17,26)+between(t,74,91)+between(t,99,120)+between(t,170,200)+between(t,200,210)', asetpts=N/SR/TB" out.mp4
+
+OK Code
+ffmpeg -y -i source.mp4 -stream_loop -1 -i background.mp4 -stream_loop -1 -i transparent.mp4 -filter_complex "[1:v]setpts=N/(FRAME_RATE*TB)[bg];[0:v]setpts=PTS/1.2, scale=1564x880[vmain];
+[bg][vmain]overlay=shortest=1:x=-142:y=200 [main];[2:v]colorkey=0x000000:0.2:0.2[transparent];[main][transparent]overlay=shortest=1[out],
+[0:a] volume=1, atempo=1.2" -map "[out]" -vcodec libx264 -pix_fmt yuv420p -r 60 -g 60 -b:v 4M -profile:v main -level 3.1 -acodec libmp3lame -b:a 128k -ar 44100 -preset ultrafast outinput.mp4
+
+ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "F:\input\21 DIY Miniature 〜 Cosmetics, Oreo, Nesquik, Milk, Pasta and more-P3kWAnbwrcA.mp4"
+
+Code ghép video -> background + transparent + cắt đầu cắt đuôi
+ffmpeg -y -i 1.mp4 -stream_loop -1 -i backgroundBeauty.mp4 -stream_loop -1 -i transparent.mp4 -filter_complex "[1:v]setpts=N/(FRAME_RATE*TB)[bg];
+[0:v]setpts=PTS/1.2, scale=1440x1080[vmain]; [bg][vmain]overlay=shortest=1:x=-80:y=100 [main];[2:v]colorkey=0x000000:0.2:0.2[transparent];
+[main][transparent]overlay=shortest=1[out], [0:a] volume=0.5, atempo=1.2" -map "[out]" -ss 5 -to 25 -preset ultrafast outinput.mp4
+
+ffmpeg -y -i "{input}.mp4" -stream_loop -1 -i "D:\Work\Celano\Youtube Zenni Free Version 2.0\BackgroundBeauty.mp4"
+-stream_loop -1 -i "D:\Work\Celano\Youtube Zenni Free Version 2.0\transparent.mp4" -filter_complex "[1:v]setpts=N/(FRAME_RATE*TB),
+boxblur=luma_radius=min(w\,h)/150:luma_power=1:chroma_radius=min(ch\,cw)/150:chroma_power=1[bg]; [0:v]setpts=PTS/1.2, crop=ih*0.5625:ih, scale=810x1440[vmain];
+[bg][vmain]overlay=shortest=1:x=235:y=-80 [main];[2:v]colorkey=0x000000:0.2:0.2[transparent]; [main][transparent]overlay=shortest=1[out],
+[0:a] volume=1, atempo=1.2" -map "[out]" -vcodec libx264 -pix_fmt yuv420p -r 60 -g 60 -b:v 4M -profile:v main -level 3.1 -acodec libmp3lame -b:a 128k -ar 44100 -preset ultrafast "{output}.mp4"
+
+Dòng trên
+ffmpeg -y -i input.mp4 -vf "[in]
+drawtext=fontfile='C\:/WINDOWS/fonts/BRLNSDB.TTF': text='This is text line 1':x=(w-tw)/2:y=((200-th)/2)-(th-(th/4)): fontsize=80: fontcolor=#FFCA08,
+drawtext=fontfile='C\:/WINDOWS/fonts/BRLNSDB.TTF': text='This is text line 2':x=(w-tw)/2:y=((200-text_h)/2)+(text_h-(th/4)): fontsize=80: fontcolor=#FFCA08
+[out]" -preset ultrafast output.mp4
+Dòng dưới
+ffmpeg -y -i outinput.mp4 -vf "[in]drawtext=fontfile='C\:/WINDOWS/fonts/BRLNSDB.TTF': text='This is text line 1':x=(w-tw)/2:y=(h-200)+((200-th)/2)-(th-(th/4)): fontsize=80: fontcolor=#FFCA08,
+drawtext=fontfile='C\:/WINDOWS/fonts/BRLNSDB.TTF': text='This is text line 2':x=(w-tw)/2:y=(h-200)+((200-text_h)/2)+(text_h-(th/4)): fontsize=80: fontcolor=#FFCA08[out]" -preset ultrafast 2.mp4
+
+Code thêm nền + text trên dưới định dạng 16/9
+ffmpeg -y -i source.mp4 -i background.png -stream_loop -1 -i transparent.mp4 -stream_loop -1 -i logo.mp4 -filter_complex "
+[0:v]setpts=PTS/1.2, scale=1564x880, pad=1564:1564:0:(1564-880)/2, crop=1280:1280[vmain];
+[2:v]colorkey=0x000000:0.2:0.2[transparent];
+[3:v]scale=108:60, colorkey=0x000000:0.2:0.2[logo];
+[vmain][transparent]overlay=shortest=1[main];
+[main][logo]overlay=shortest=1:x=1102:y=264[mains];
+[mains][1:v]overlay=0:0,
+drawtext=fontfile='C\:/WINDOWS/fonts/BRLNSDB.TTF': text='This is text line 1':x=(w-tw)/2:y=((200-th)/2)-(th-(th/4)): fontsize=80: fontcolor=#FFCA08,
+drawtext=fontfile='C\:/WINDOWS/fonts/BRLNSDB.TTF': text='This is text line 2':x=(w-tw)/2:y=((200-text_h)/2)+(text_h-(th/4)): fontsize=80: fontcolor=#FFCA08,
+drawtext=fontfile='C\:/WINDOWS/fonts/BRLNSDB.TTF': text='This is text line 3':x=(w-tw)/2:y=(h-200)+((200-th)/2)-(th-(th/4)): fontsize=80: fontcolor=#FFCA08,
+drawtext=fontfile='C\:/WINDOWS/fonts/BRLNSDB.TTF': text='This is text line 4':x=(w-tw)/2:y=(h-200)+((200-text_h)/2)+(text_h-(th/4)): fontsize=80: fontcolor=#FFCA08[out],
+[0:a] volume=1, atempo=1.2" -map "[out]" -vcodec libx264 -pix_fmt yuv420p -r 60 -g 60 -b:v 4M -profile:v main -level 3.1 -acodec libmp3lame -b:a 128k -ar 44100 -ss 5 -to 25 -preset ultrafast outinput.mp4
+
+Code thêm nền + text trên dưới định dạng tiktok
+ffmpeg -y -i source.mp4 -i background.png -stream_loop -1 -i transparent.mp4 -filter_complex "
+[0:v]setpts=PTS/1.2, scale=1564x880, pad=1564:1564:0:(1564-880)/2, crop=1280:1280[vmain];
+[2:v]colorkey=0x000000:0.2:0.2[transparent];
+[vmain][transparent]overlay=shortest=1[main];
+[main][1:v]overlay=0:0,
+drawtext=fontfile='C\:/WINDOWS/fonts/BRLNSDB.TTF': text='This is text line 1':x=(w-tw)/2:y=((200-th)/2)-(th-(th/4)): fontsize=80: fontcolor=#FFCA08,
+drawtext=fontfile='C\:/WINDOWS/fonts/BRLNSDB.TTF': text='This is text line 2':x=(w-tw)/2:y=((200-text_h)/2)+(text_h-(th/4)): fontsize=80: fontcolor=#FFCA08,
+drawtext=fontfile='C\:/WINDOWS/fonts/BRLNSDB.TTF': text='This is text line 3':x=(w-tw)/2:y=(h-200)+((200-th)/2)-(th-(th/4)): fontsize=80: fontcolor=#FFCA08,
+drawtext=fontfile='C\:/WINDOWS/fonts/BRLNSDB.TTF': text='This is text line 4':x=(w-tw)/2:y=(h-200)+((200-text_h)/2)+(text_h-(th/4)): fontsize=80: fontcolor=#FFCA08[out],
+[0:a] volume=1, atempo=1.2" -map "[out]" -vcodec libx264 -pix_fmt yuv420p -r 60 -g 60 -b:v 4M -profile:v main -level 3.1 -acodec libmp3lame -b:a 128k -ar 44100 -ss 5 -to 25 -preset ultrafast outinput.mp4
+
+Code Render tiktok sang Vuông
+ffmpeg -y -i "{input}.mp4" -filter_complex "[0:v]scale=1280:1280,boxblur=luma_radius=min(w\,h)/40:luma_power=3:chroma_radius=min(ch\,cw)/40:chroma_power=1[bg];[0:v]scale=720:1280, crop=720:1060, scale=869:1280[main];[bg][main]overlay=(W-w)/2:0,setsar=1" -vcodec libx264 -pix_fmt yuv420p -r 60 -g 60 -b:v 4M -profile:v main -level 3.1 -acodec libmp3lame -b:a 128k -ar 44100 -preset ultrafast "{output}.mp4"
+
+Code Render tiktok sang Vuông + Lách âm thanh
+ffmpeg -y -i "{input}.mp4" -filter_complex "[0:v]scale=1280:1280,boxblur=luma_radius=min(w\,h)/40:luma_power=3:chroma_radius=min(ch\,cw)/40:chroma_power=1[bg];[0:v]scale=720:1280, crop=720:1060, scale=869:1280[main];[bg][main]overlay=(W-w)/2:0,setsar=1[vout];[0:a]atempo=1,bass=frequency=200:gain=-90,volume=+10dB,aecho=1:0.6:2:0.4,bass=g=3:f=110:w=20,bass=g=10:f=500:w=20,bass=g=3:f=300:w=30,bass=g=10:f=110:w=20,bass=g=20:f=110:w=40,firequalizer=gain_entry='entry(0,-23);entry(250,-11.5);entry(6000,0);entry(12000,8);entry(16000,16)',compand=attacks=7:decays=1:points=-90/-90 -70/-60 -15/-15 0/-10:soft-knee=1:volume=-70:gain=3,pan=stereo| FL < FL + 0.5*FC + 0.6*BL + 0.6*SL | FR < FR + 2*FC + 1*BR + 2*SR,highpass=f=300,lowpass=f=700,volume=25[aout]" -map "[vout]" -map "[aout]" -vcodec libx264 -pix_fmt yuv420p -r 60 -g 60 -b:v 4M -profile:v main -level 3.1 -acodec libmp3lame -b:a 128k -ar 44100 -preset ultrafast "{output}.mp4"
+
+Code lách âm thanh
+[0:a]atempo=1,bass=frequency=200:gain=-90,volume=+10dB,aecho=1:0.6:2:0.4,bass=g=3:f=110:w=20,bass=g=10:f=500:w=20,bass=g=3:f=300:w=30,bass=g=10:f=110:w=20,bass=g=20:f=110:w=40,firequalizer=gain_entry='entry(0,-23);entry(250,-11.5);entry(6000,0);entry(12000,8);entry(16000,16)',compand=attacks=7:decays=1:points=-90/-90 -70/-60 -15/-15 0/-10:soft-knee=1:volume=-70:gain=3,pan=stereo| FL < FL + 0.5*FC + 0.6*BL + 0.6*SL | FR < FR + 2*FC + 1*BR + 2*SR,highpass=f=300,lowpass=f=700,volume=25[aout]" -map "[vout]" -map "[aout]" -vcodec libx264 -pix_fmt yuv420p -r 60 -g 60 -b:v 4M -profile:v main -level 3.1 -acodec libmp3lame -b:a 128k -ar 44100 -preset ultrafast 6.mp4
+
+[0:a] aecho=0.8:0.9:1000:0.3,aecho=0.8:0.9:1000|1800:0.3|0.25 [aout]" -map "[vout]" -map "[aout]" -vcodec libx264 -pix_fmt yuv420p -r 60 -g 60 -b:v 4M -profile:v main -level 3.1 -acodec libmp3lame -b:a 128k -ar 44100 -preset ultrafast 2.mp4
+[0:a] atempo=1.0, aecho=0.8:0.88:6:0.4, aecho=0.4:0.66:2:0.2,aecho=0.8:0.88:60:0.4,equalizer =f=1000: width_type=q: width=1:g=2, equalizer=f=100: width_type=q:width=2: g=-5, volume=3,pan=stereo|c0<c0+0*c1|c1<c0+0*c1,aeval=val(0)|-val(1) [aout]" -map "[vout]" -map "[aout]" -vcodec libx264 -pix_fmt yuv420p -r 60 -g 60 -b:v 4M -profile:v main -level 3.1 -acodec libmp3lame -b:a 128k -ar 44100 -preset ultrafast 3.mp4
+[0:a]atempo=1,bass=frequency=300:gain=-70,volume=+20dB,aecho=1:0.9:2:0.7,bass=g=3:f=110:w=20,bass=g=10:f=500:w=20,bass=g=3:f=300:w=30,bass=g=10:f=110:w=20,bass=g=20:f=110:w=40,firequalizer=gain_entry='entry(0,-23);entry(250,-11.5);entry(6000,0);entry(12000,8);entry(16000,16)',compand=attacks=7:decays=1:points=-90/-90 -70/-60 -15/-15 0/-10:soft-knee=1:volume=-70:gain=3,pan=stereo| FL < FL + 0.5*FC + 0.6*BL + 0.6*SL | FR < FR + 2*FC + 1*BR + 2*SR,highpass=f=300,lowpass=f=700,volume=10,chorus=0.2:0.4:20|20:0.4|0.12:0.12|0.4:2|1.2[aout]" -map "[vout]" -map "[aout]" -vcodec libx264 -pix_fmt yuv420p -r 60 -g 60 -b:v 4M -profile:v main -level 3.1 -acodec libmp3lame -b:a 128k -ar 44100 -preset ultrafast 4.mp4
+[0:a]atempo=1,bass=frequency=200:gain=-90,volume=+10dB,aecho=1:0.6:2:0.4,bass=g=3:f=110:w=20,bass=g=10:f=500:w=20,bass=g=3:f=300:w=30,bass=g=10:f=110:w=20,bass=g=20:f=110:w=40,firequalizer=gain_entry='entry(0,-23);entry(250,-11.5);entry(6000,0);entry(12000,8);entry(16000,16)',compand=attacks=7:decays=1:points=-90/-90 -70/-60 -15/-15 0/-10:soft-knee=1:volume=-70:gain=3,pan=stereo| FL < FL + 0.5*FC + 0.6*BL + 0.6*SL | FR < FR + 2*FC + 1*BR + 2*SR,highpass=f=300,lowpass=f=700,volume=1[aout]" -map "[vout]" -map "[aout]" -vcodec libx264 -pix_fmt yuv420p -r 60 -g 60 -b:v 4M -profile:v main -level 3.1 -acodec libmp3lame -b:a 128k -ar 44100 -preset ultrafast 5.mp4
+
+Xoá metadata
+-metadata title="" -metadata artist="" -metadata album_artist="" -metadata album="" -metadata date="" -metadata track="" -metadata genre="" -metadata publisher="" -metadata encoded_by="" -metadata copyright="" -metadata composer="" -metadata performer="" -metadata TIT1="" -metadata TIT3="" -metadata disc="" -metadata TKEY="" -metadata TBPM="" -metadata language="eng" -metadata encoder=""
+
+ffmpeg -y -i "{input}.mp4" -filter_complex "[0:v]scale=1280:1280,boxblur=luma_radius=min(w\,h)/40:luma_power=3:chroma_radius=min(ch\,cw)/40:chroma_power=1[bg];[0:v]scale=720:1280, crop=720:1060, scale=869:1280[main];[bg][main]overlay=(W-w)/2:0,setsar=1" -vcodec libx264 -pix_fmt yuv420p -r 60 -g 60 -b:v 4M -profile:v main -level 3.1 -acodec copy -metadata title="" -metadata artist="" -metadata album_artist="" -metadata album="" -metadata date="" -metadata track="" -metadata genre="" -metadata publisher="" -metadata encoded_by="" -metadata copyright="" -metadata composer="" -metadata performer="" -metadata TIT1="" -metadata TIT3="" -metadata disc="" -metadata TKEY="" -metadata TBPM="" -metadata language="eng" -metadata encoder="" -preset superfast "{output}.mp4"
